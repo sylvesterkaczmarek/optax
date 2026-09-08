@@ -143,7 +143,7 @@ def _vdot_safe(a, b):
   return _vdot(jnp.asarray(a), jnp.asarray(b))
 
 
-def tree_vdot(tree_x: Any, tree_y: Any) -> jax.typing.ArrayLike:
+def tree_vdot(tree_x: Any, tree_y: Any) -> jax.Array:
   r"""Compute the inner product between two pytrees.
 
   Args:
@@ -169,9 +169,7 @@ def tree_vdot(tree_x: Any, tree_y: Any) -> jax.typing.ArrayLike:
   return tree_sum(vdots)
 
 
-def tree_sum(
-    tree: Any, associative_reduction: bool = False
-) -> jax.typing.ArrayLike:
+def tree_sum(tree: Any, associative_reduction: bool = False) -> jax.Array:
   """Compute the sum of all the elements in a pytree.
 
   Args:
@@ -188,7 +186,9 @@ def tree_sum(
   if associative_reduction:
     # Use reduce_associative for a potential compilation time speedup
     if hasattr(jax.tree, 'reduce_associative'):
-      return jax.tree.reduce_associative(operator.add, sums, identity=0)
+      return jnp.asarray(
+          jax.tree.reduce_associative(operator.add, sums, identity=0)
+      )
     else:
       raise ValueError(
           'associative_reduction=True requires JAX >= 0.6.0 which provides '
@@ -196,10 +196,10 @@ def tree_sum(
           'associative_reduction=False.'
       )
   else:
-    return jax.tree.reduce(operator.add, sums, initializer=0)
+    return jnp.asarray(jax.tree.reduce(operator.add, sums, initializer=0))
 
 
-def tree_max(tree: Any) -> jax.typing.ArrayLike:
+def tree_max(tree: Any) -> jax.Array:
   """Compute the max of all the elements in a pytree.
 
   Args:
@@ -214,10 +214,12 @@ def tree_max(tree: Any) -> jax.typing.ArrayLike:
     else:
       return jnp.max(array)
   maxes = jax.tree.map(f, tree)
-  return jax.tree.reduce(jnp.maximum, maxes, initializer=-float('inf'))
+  return jnp.asarray(
+      jax.tree.reduce(jnp.maximum, maxes, initializer=-float('inf'))
+  )
 
 
-def tree_min(tree: Any) -> jax.typing.ArrayLike:
+def tree_min(tree: Any) -> jax.Array:
   """Compute the min of all the elements in a pytree.
 
   Args:
@@ -232,7 +234,9 @@ def tree_min(tree: Any) -> jax.typing.ArrayLike:
     else:
       return jnp.min(array)
   mins = jax.tree.map(f, tree)
-  return jax.tree.reduce(jnp.minimum, mins, initializer=float('inf'))
+  return jnp.asarray(
+      jax.tree.reduce(jnp.minimum, mins, initializer=float('inf'))
+  )
 
 
 def tree_size(tree: Any) -> int:

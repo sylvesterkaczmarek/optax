@@ -257,9 +257,8 @@ def partition(
     if not label_set.issubset(transforms.keys()):
       raise ValueError(
           'Some parameters have no corresponding transformation.\n'
-          f'Parameter labels: {list(sorted(label_set))} \n'
-          # pyrefly: ignore[bad-specialization]
-          f'Transforms keys: {list(sorted(transforms.keys()))} \n'
+          f'Parameter labels: {sorted(label_set, key=str)} \n'
+          f'Transforms keys: {sorted(transforms.keys(), key=str)} \n'
       )
 
     inner_states = {

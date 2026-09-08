@@ -43,7 +43,7 @@ def keep_params_nonnegative() -> base.GradientTransformation:
     del params
     return NonNegativeParamsState()
 
-  def update_fn(updates, state, params):
+  def update_fn(updates, state, params=None):
     if params is None:
       raise ValueError(base.NO_PARAMS_MSG)
 
@@ -55,7 +55,6 @@ def keep_params_nonnegative() -> base.GradientTransformation:
     )
     return updates, state
 
-  # pyrefly: ignore[bad-argument-type]
   return base.GradientTransformation(init_fn, update_fn)
 
 
@@ -90,15 +89,14 @@ def zero_nans() -> base.GradientTransformation:
         )
     )
 
-  def update_fn(updates, opt_state, params=None):
-    del params, opt_state
-    opt_state = ZeroNansState(
+  def update_fn(updates, state, params=None):
+    del params, state
+    new_state = ZeroNansState(
         found_nan=jax.tree.map(lambda p: jnp.any(jnp.isnan(p)), updates)
     )
     updates = jax.tree.map(
         lambda p: jnp.where(jnp.isnan(p), jnp.zeros_like(p), p), updates
     )
-    return updates, opt_state
+    return updates, new_state
 
-  # pyrefly: ignore[bad-argument-type]
   return base.GradientTransformation(init=init_fn, update=update_fn)

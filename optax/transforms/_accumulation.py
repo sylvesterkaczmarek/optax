@@ -179,9 +179,8 @@ def skip_not_finite(
   del gradient_step, params
   not_finite = jax.tree.map(lambda x: ~jnp.isfinite(x), updates)
   num_not_finite = optax.tree.sum(not_finite)
-  should_skip = num_not_finite > 0  # pyrefly: ignore[unsupported-operation]
-  # pyrefly: ignore [bad-return]
-  return should_skip, {  # pytype: disable=bad-return-type
+  should_skip = num_not_finite > 0
+  return should_skip, {
       'should_skip': should_skip,
       'num_not_finite': num_not_finite,
   }
@@ -229,8 +228,8 @@ class MultiStepsState(NamedTuple):
       `should_skip_update_fn` to `MultiSteps`.
   """
 
-  mini_step: jax.typing.ArrayLike
-  gradient_step: jax.typing.ArrayLike
+  mini_step: jax.Array
+  gradient_step: jax.Array
   inner_opt_state: Any
   acc_grads: Any
   skip_state: base.ArrayTree = ()
@@ -292,10 +291,12 @@ class MultiSteps:
     self._opt = base.with_extra_args_support(opt)
 
     if isinstance(every_k_schedule, int):
-      self._every_k_schedule = lambda step: every_k_schedule
+      k = every_k_schedule
+      self._every_k_schedule: Callable[[jax.Array], jax.Array] = (
+          lambda step: jnp.asarray(k)
+      )
     else:
-      # pyrefly: ignore[bad-assignment]
-      self._every_k_schedule = every_k_schedule
+      self._every_k_schedule = lambda step: jnp.asarray(every_k_schedule(step))
     self._use_grad_mean = use_grad_mean
     self._accumulator_dtype = utils.canonicalize_dtype(accumulator_dtype)
 
@@ -336,7 +337,7 @@ class MultiSteps:
   def update(
       self,
       updates: base.Updates,
-      state: MultiStepsState,
+      state: Any,
       params: Optional[base.Params] = None,
       **extra_args: Any,
   ) -> tuple[base.Updates, MultiStepsState]:
@@ -345,13 +346,11 @@ class MultiSteps:
     should_skip_update, skip_state = self._should_skip_update_fn(
         updates, state.gradient_step, params
     )
-    # pyrefly: ignore[missing-attribute]
+    should_skip_update = jnp.asarray(should_skip_update)
     if (should_skip_update.dtype, should_skip_update.shape) != (jnp.bool_, ()):
       raise ValueError(
           'The `should_skip_update_fn` function should return a boolean scalar '
-          # pyrefly: ignore[missing-attribute]
           f'array, but it returned an array of dtype {should_skip_update.dtype}'
-          # pyrefly: ignore[missing-attribute]
           f' and shape {should_skip_update.shape}'
       )
 
@@ -369,7 +368,6 @@ class MultiSteps:
 
       emit = state.mini_step == (k_steps - 1)
       new_state = MultiStepsState(
-          # pyrefly: ignore[unsupported-operation]
           mini_step=numerics.safe_increment(state.mini_step) % k_steps,
           gradient_step=emit * numerics.safe_increment(state.gradient_step)
           + (1 - emit) * state.gradient_step,
@@ -422,6 +420,7 @@ class MultiSteps:
         getattr(state, 'mini_step') == 0, getattr(state, 'gradient_step') > 0
     )
 
-  def gradient_transformation(self) -> base.GradientTransformation:
-    # pyrefly: ignore[bad-argument-type]
-    return base.GradientTransformation(init=self.init, update=self.update)
+  def gradient_transformation(self) -> base.GradientTransformationExtraArgs:
+    return base.GradientTransformationExtraArgs(
+        init=self.init, update=self.update
+    )

@@ -481,7 +481,7 @@ def tree_set(
         return kwargs[node.__class__.__name__]
       # The node contains one of the keys we want to replace
       children_with_path = _get_children_with_path(path, node)
-      new_children_with_keys = {}
+      new_children_with_keys: dict[Union[int, str], Any] = {}
       for child_path, child in children_with_path:
         # Scan each child of that node
         key = _get_key(child_path[-1])
@@ -490,18 +490,16 @@ def tree_set(
         ):
           # If the child matches a given key given the filtering operation
           # replaces with the new value
-          new_children_with_keys.update({key: kwargs[key]})
+          new_children_with_keys[key] = kwargs[key]
         else:
           if isinstance(child, (dict, list, tuple)):
             # If the child is itself a pytree, further search in the child to
             # replace the given value
-            # pyrefly: ignore [no-matching-overload]
-            new_children_with_keys.update({key: _replace(child_path, child)})
+            new_children_with_keys[key] = _replace(child_path, child)
           else:
             # If the child is just a leaf that does not contain the key or
             # satisfies the filtering operation, just return the child.
-            # pyrefly: ignore [no-matching-overload]
-            new_children_with_keys.update({key: child})
+            new_children_with_keys[key] = child
       return _set_children(node, new_children_with_keys)
 
     return node

@@ -73,13 +73,12 @@ def snapshot(
 
   def update(
       updates: base.Updates,
-      state: SnapshotState,
+      state: Any,
       params: base.Params | None = None,
   ) -> tuple[base.Updates, SnapshotState]:
     del params, state
     return updates, SnapshotState({measure_name: measure(updates)})
 
-  # pyrefly: ignore[bad-argument-type]
   return base.GradientTransformation(init, update)
 
 
@@ -138,36 +137,32 @@ def monitor(
   .. versionadded: 0.2.7
   """
 
-  measures_ = {}
+  wrapped_measures: dict[str, base.GradientTransformationExtraArgs] = {}
   for measure_name, measure in measures.items():
     if callable(measure):
       measure_ = base.stateless(lambda u, _, m=measure: m(u))
-      measures_[measure_name] = base.with_extra_args_support(measure_)
+      wrapped_measures[measure_name] = base.with_extra_args_support(measure_)
     else:
-      measures_[measure_name] = base.with_extra_args_support(measure)
-  # pyrefly: ignore [bad-assignment]
-  measures = measures_
-  measure_names = tuple(measures.keys())
+      wrapped_measures[measure_name] = base.with_extra_args_support(measure)
+  measure_names = tuple(wrapped_measures.keys())
 
   def init(params: base.Params) -> MonitorState:
     measurements = {}
     measure_states = []
     for measure_name in measure_names:
-      # pyrefly: ignore [missing-attribute]
-      measure_states.append(measures[measure_name].init(params))
+      measure_states.append(wrapped_measures[measure_name].init(params))
     return MonitorState(measurements, tuple(measure_states))
 
   def update(
       updates: base.Updates,
-      state: MonitorState,
+      state: Any,
       params: base.Params | None = None,
-      **extra_args: dict[str, Any],
+      **extra_args: Any,
   ) -> tuple[base.Updates, MonitorState]:
     measurements = {}
     new_measure_states = []
     for i, measure_name in enumerate(measure_names):
-      # pyrefly: ignore [missing-attribute]
-      measurement, measure_state = measures[measure_name].update(
+      measurement, measure_state = wrapped_measures[measure_name].update(
           updates,
           state.measure_states[i],
           params,
@@ -177,7 +172,6 @@ def monitor(
       new_measure_states.append(measure_state)
     return updates, MonitorState(measurements, tuple(new_measure_states))
 
-  # pyrefly: ignore[bad-argument-type]
   return base.GradientTransformationExtraArgs(init, update)
 
 

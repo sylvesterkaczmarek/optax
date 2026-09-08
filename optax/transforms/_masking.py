@@ -15,7 +15,7 @@
 """Wrappers that mask out part of the parameters when applying a transform."""
 
 from collections.abc import Callable
-from typing import Any, NamedTuple, Union
+from typing import Any, NamedTuple, Union, cast
 
 import jax
 from optax._src import base
@@ -122,8 +122,7 @@ def masked(
     # as tree_map_params is being called on a tree with the correct structure.
     # See wrappers_test for proof that this works!
     if isinstance(params, _state_utils._ParamsPlaceholder):  # pylint:disable=protected-access
-      # pyrefly: ignore[bad-argument-type]
-      return MaskedState(inner_state=inner.init(params))
+      return MaskedState(inner_state=inner.init(cast(base.Params, params)))
 
     mask_tree = mask(params) if _mask_callable(mask) else mask
     masked_params = mask_pytree(params, mask_tree)

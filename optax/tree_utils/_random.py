@@ -16,7 +16,7 @@
 
 from collections.abc import Callable
 import inspect
-from typing import Optional, Union
+from typing import Optional
 
 import jax
 from optax._src import base
@@ -42,12 +42,7 @@ def tree_split_key_like(
 def tree_random_like(
     rng_key: base.PRNGKey,
     target_tree: base.ArrayTree,
-    sampler: Union[
-        Callable[[base.PRNGKey, base.Shape, jax.typing.DTypeLike],
-                 jax.typing.ArrayLike],
-        Callable[[base.PRNGKey, base.Shape, jax.typing.DTypeLike,
-                  jax.sharding.Sharding],
-                 jax.typing.ArrayLike]] = jax.random.normal,
+    sampler: Callable[..., jax.typing.ArrayLike] = jax.random.normal,
     dtype: Optional[jax.typing.DTypeLike] = None,
 ) -> base.ArrayTree:
   """Create tree with random entries of the same shape as target tree.
@@ -74,7 +69,6 @@ def tree_random_like(
   keys_tree = tree_split_key_like(rng_key, target_tree)
   sampler_ = sampler
   if "out_sharding" not in inspect.signature(sampler).parameters:
-    # pyrefly: ignore[bad-argument-count]
     sampler_ = lambda key, shape, dtype, *, out_sharding: sampler(  # pylint: disable=unnecessary-lambda
         key, shape, dtype
     )  # pytype: disable=wrong-arg-count
@@ -84,7 +78,6 @@ def tree_random_like(
           key,
           leaf.shape,
           dtype or leaf.dtype,
-          # pyrefly: ignore [bad-argument-count, unexpected-keyword]
           out_sharding=jax.typeof(leaf).sharding,
       ),
       # pytype: enable=wrong-keyword-args
